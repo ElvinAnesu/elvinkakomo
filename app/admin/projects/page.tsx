@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/table";
 import { supabaseServer } from "@/lib/supabase-server";
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProjectsPage() {
   // Fetch projects from Supabase with client information
   const { data: projects, error } = await supabaseServer
