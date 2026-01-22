@@ -3,6 +3,7 @@ import Footer from "../components/Footer";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import { solutions } from "../lib/mockData";
+import Image from "next/image";
 
 export default function Solutions() {
   const getPricingBadgeColor = (pricing: string) => {
@@ -38,7 +39,7 @@ export default function Solutions() {
               <span className="gradient-text">Available</span>
             </h1>
             <p className="text-xl md:text-2xl text-[#64748B] max-w-3xl mx-auto">
-              Software ready to sell or offer for free — templates, components, and tools you can use today.
+              Software ready for you — templates, components, and tools you can use today.
             </p>
           </div>
 
@@ -47,6 +48,19 @@ export default function Solutions() {
               <Card key={solution.id} className="relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <div className="relative">
+                  {/* Solution Image */}
+                  {solution.image && (
+                    <div className="mb-4 rounded-lg overflow-hidden bg-[#FAFAFA]">
+                      <Image
+                        src={solution.image}
+                        alt={solution.name}
+                        width={600}
+                        height={300}
+                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <span className="text-xs font-semibold text-[#6B21A8] uppercase tracking-wide mb-2 inline-block">
@@ -77,11 +91,15 @@ export default function Solutions() {
                       </span>
                     ))}
                   </div>
-                  {solution.link && (
+                  {solution.tryNow ? (
+                    <Button href={solution.link || "#"} variant="primary" className="w-full">
+                      Try Now →
+                    </Button>
+                  ) : solution.link ? (
                     <Button href={solution.link} variant="primary" className="w-full">
                       View Solution →
                     </Button>
-                  )}
+                  ) : null}
                 </div>
               </Card>
             ))}

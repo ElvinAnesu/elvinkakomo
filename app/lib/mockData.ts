@@ -129,6 +129,9 @@ export interface OwnProduct {
   status: "Active" | "Maintenance";
   users?: string;
   link?: string;
+  image?: string;
+  isDemo?: boolean;
+  tryNow?: boolean;
 }
 
 export interface Solution {
@@ -139,6 +142,8 @@ export interface Solution {
   pricing: "Free" | "Paid" | "Open Source";
   link?: string;
   category: string;
+  image?: string;
+  tryNow?: boolean;
 }
 
 export const clientProjects: ClientProject[] = [
@@ -187,62 +192,44 @@ export const clientProjects: ClientProject[] = [
 export const ownProducts: OwnProduct[] = [
   {
     id: "1",
-    name: "TaskFlow",
-    description: "Personal productivity app for managing tasks and projects with team collaboration features.",
-    technologies: ["Next.js", "TypeScript", "Supabase"],
+    name: "TetraFert",
+    description: "Professional website for a fertilizer plant company based in Harare, Zimbabwe. Features modern design, product showcase, and company information.",
+    technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
     status: "Active",
-    users: "500+",
+    link: "https://tetrafert.com/",
+    image: "/projects/tetrafert.png",
   },
   {
     id: "2",
-    name: "CodeSnippet Manager",
-    description: "Developer tool for organizing and sharing code snippets with syntax highlighting and search.",
-    technologies: ["React", "Express", "MongoDB"],
+    name: "Expagro",
+    description: "Professional website for an agricultural exports company based in Dar es Salaam, Tanzania. Showcases services, products, and company expertise in agro exports.",
+    technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
     status: "Active",
-    users: "1,200+",
+    link: "https://expagroltd.com/",
+    image: "/projects/expagro.png",
   },
   {
     id: "3",
-    name: "Budget Tracker",
-    description: "Simple and intuitive expense tracking application with category management and reports.",
-    technologies: ["Vue.js", "Firebase"],
-    status: "Maintenance",
-    users: "300+",
+    name: "Soko Cars",
+    description: "Enterprise Resource Planning (ERP) system for a company that imports cars. Comprehensive management tool for inventory, sales, and operations. Not publicly accessible.",
+    technologies: ["Next.js", "TypeScript", "Supabase", "PostgreSQL"],
+    status: "Active",
+    image: "/projects/sokocars.com.png",
+    isDemo: true,
   },
 ];
 
 export const solutions: Solution[] = [
   {
     id: "1",
-    name: "Starter Template - SaaS",
-    description: "Complete SaaS starter template with authentication, billing, and admin dashboard. Ready to deploy.",
-    technologies: ["Next.js", "TypeScript", "Stripe", "Supabase"],
-    pricing: "Paid",
-    category: "Templates",
-  },
-  {
-    id: "2",
-    name: "API Rate Limiter",
-    description: "Open-source middleware for rate limiting API requests with Redis backend. Production-ready.",
-    technologies: ["Node.js", "Redis", "Express"],
-    pricing: "Open Source",
-    category: "Libraries",
-  },
-  {
-    id: "3",
-    name: "Form Builder Component",
-    description: "Drag-and-drop form builder React component with validation and export capabilities.",
-    technologies: ["React", "TypeScript"],
+    name: "Intellimark",
+    description: "An intelligent AI tool that provides comprehensive information on East African major markets. Get real-time market insights, trends, and data analytics to make informed business decisions.",
+    technologies: ["AI/ML", "Next.js", "TypeScript", "Python"],
     pricing: "Free",
-    category: "Components",
-  },
-  {
-    id: "4",
-    name: "Analytics Dashboard Kit",
-    description: "Pre-built analytics dashboard with charts, filters, and data export. Customizable and responsive.",
-    technologies: ["React", "Chart.js", "Tailwind CSS"],
-    pricing: "Paid",
-    category: "Templates",
+    category: "AI Tools",
+    image: "/solutions/intellimark.png",
+    link: "https://intellimark-gamma.vercel.app/",
+    tryNow: true,
   },
 ];
 
