@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="format-detection" content="telephone=no">
+  <title>Account Invitation - Elvin Kakomo</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #F9FAFB; line-height: 1.6; color: #0F172A;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #F9FAFB; padding: 20px;">
+    <tr>
+      <td align="center" style="padding: 20px 0;">
+        <table role="presentation" style="width: 100%; max-width: 600px; background-color: #FFFFFF; border-radius: 8px; border: 1px solid #E5E7EB; overflow: hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px 40px; text-align: center; background-color: #FFFFFF;">
+              <h1 style="color: #6B21A8; font-size: 26px; font-weight: 600; margin: 0 0 8px 0; line-height: 1.3;">
+                Account Invitation
+              </h1>
+              <p style="color: #64748B; font-size: 15px; margin: 0;">
+                Elvin Kakomo Collaboration Platform
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 0 40px 30px 40px;">
+              <div style="background-color: #FAFAFA; border-radius: 8px; padding: 24px;">
+                <p style="margin: 0 0 18px 0; font-size: 16px; color: #0F172A; line-height: 1.6;">
+                  Hello {{ .Name }},
+                </p>
+                <p style="margin: 0 0 18px 0; font-size: 16px; color: #0F172A; line-height: 1.6;">
+                  You have been invited to create an account on Elvin Kakomo&apos;s collaboration platform. This invitation was sent to {{ .Email }}.
+                </p>
+                <p style="margin: 0 0 24px 0; font-size: 16px; color: #0F172A; line-height: 1.6;">
+                  To complete your account setup, please create a password using the secure link below.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- CTA Button -->
+          <tr>
+            <td style="padding: 0 40px 30px 40px; text-align: center;">
+              <table role="presentation" style="margin: 0 auto;">
+                <tr>
+                  <td style="background-color: #6B21A8; border-radius: 8px;">
+                    <a href="{{ .ConfirmationURL }}" 
+                       style="display: inline-block; padding: 14px 32px; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px;">
+                      Create Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Alternative Link -->
+          <tr>
+            <td style="padding: 0 40px 30px 40px; border-top: 1px solid #E5E7EB;">
+              <p style="font-size: 14px; color: #64748B; margin: 20px 0 10px 0; line-height: 1.5;">
+                If you cannot click the button, copy and paste this link into your web browser:
+              </p>
+              <p style="font-size: 12px; color: #6B21A8; word-break: break-all; margin: 0; padding: 12px; background-color: #F9FAFB; border-radius: 4px; font-family: monospace;">
+                {{ .ConfirmationURL }}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Security Notice -->
+          <tr>
+            <td style="padding: 0 40px 30px 40px; border-top: 1px solid #E5E7EB;">
+              <p style="font-size: 13px; color: #64748B; margin: 20px 0 0 0; line-height: 1.6;">
+                This invitation link will expire in 24 hours. If you did not expect this invitation, please disregard this message. No account will be created unless you complete the registration process.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #F9FAFB; border-top: 1px solid #E5E7EB;">
+              <p style="font-size: 12px; color: #94A3B8; margin: 0 0 8px 0; line-height: 1.5;">
+                This message was sent to {{ .Email }} by Elvin Kakomo.
+              </p>
+              <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.5;">
+                © 2026 Elvin Kakomo. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

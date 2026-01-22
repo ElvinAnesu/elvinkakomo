@@ -1,0 +1,13 @@
+Hello {{ .Name }},
+
+You have been invited to create an account on Elvin Kakomo&apos;s collaboration platform. This invitation was sent to {{ .Email }}.
+
+To complete your account setup, please create a password by visiting the link below:
+
+{{ .ConfirmationURL }}
+
+This invitation link will expire in 24 hours. If you did not expect this invitation, please disregard this message. No account will be created unless you complete the registration process.
+
+This message was sent to {{ .Email }} by Elvin Kakomo.
+
+© 2026 Elvin Kakomo. All rights reserved.
