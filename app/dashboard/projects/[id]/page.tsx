@@ -4,8 +4,14 @@ import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Card from "../../../components/Card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface Project {
   id: string;
@@ -45,6 +51,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchProjectData();
@@ -100,7 +107,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
         .from("project_milestones")
         .select("*")
         .eq("project", id)
-        .order("created_at", { ascending: false });
+        .order("position");
 
       if (!milestonesError && milestonesData) {
         setMilestones(milestonesData);
@@ -125,6 +132,18 @@ export default function ProjectDetailPage({ params }: PageProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleMilestone = (milestoneId: string) => {
+    setExpandedMilestones((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(milestoneId)) {
+        newSet.delete(milestoneId);
+      } else {
+        newSet.add(milestoneId);
+      }
+      return newSet;
+    });
   };
 
   // Map database status to display format
@@ -306,91 +325,109 @@ export default function ProjectDetailPage({ params }: PageProps) {
                       : 0;
 
                   return (
-                    <Card key={milestone.id} className="border-l-4 border-l-purple-500">
-                      <div className="mb-4">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-semibold text-[#0F172A]">
-                            {milestone.name}
-                          </h3>
-                        </div>
-                        {milestone.description && (
-                          <p className="text-sm text-[#64748B] mb-2">
-                            {milestone.description}
-                          </p>
-                        )}
-                        {milestone["Due date"] && (
-                          <p className="text-xs text-[#64748B] mb-3">
-                            Due: {new Date(milestone["Due date"]).toLocaleDateString()}
-                          </p>
-                        )}
-                        {milestoneTasks.length > 0 && (
-                          <div className="mt-3">
-                            <div className="flex justify-between text-sm font-semibold text-[#64748B] mb-2">
-                              <span>Progress</span>
-                              <span className="text-[#6B21A8]">{progress}%</span>
-                            </div>
-                            <div className="w-full bg-[#E5E7EB] rounded-full h-2 overflow-hidden">
-                              <div
-                                className="bg-gradient-to-r from-[#6B21A8] to-[#9333EA] h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Tasks for this milestone */}
-                      {milestoneTasks.length > 0 ? (
-                        <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
-                          <h4 className="text-sm font-semibold text-[#0F172A] mb-3">
-                            Tasks ({completedTasks}/{milestoneTasks.length})
-                          </h4>
-                          <div className="space-y-2">
-                            {milestoneTasks.map((task) => (
-                              <div
-                                key={task.id}
-                                className="p-3 bg-[#FAFAFA] rounded-lg border border-[#E5E7EB]"
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <p className="font-medium text-[#0F172A]">
-                                        {task.name}
-                                      </p>
-                                      <span
-                                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getTaskStatusClass(
-                                          task.status
-                                        )}`}
-                                      >
-                                        {task.status.replace("-", " ").toUpperCase()}
-                                      </span>
-                                      <span
-                                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getPriorityClass(
-                                          task.priority
-                                        )}`}
-                                      >
-                                        {task.priority.toUpperCase()}
-                                      </span>
-                                    </div>
-                                    {task.description && (
-                                      <p className="text-sm text-[#64748B]">
-                                        {task.description}
-                                      </p>
-                                    )}
+                    <Collapsible
+                      key={milestone.id}
+                      open={expandedMilestones.has(milestone.id)}
+                      onOpenChange={() => toggleMilestone(milestone.id)}
+                    >
+                      <Card className="border-l-4 border-l-purple-500">
+                        <CollapsibleTrigger asChild>
+                          <button className="flex items-start gap-2 w-full text-left group mb-4">
+                            <ChevronRight
+                              className={cn(
+                                "h-5 w-5 mt-0.5 text-[#64748B] transition-transform duration-200 flex-shrink-0",
+                                expandedMilestones.has(milestone.id) && "rotate-90"
+                              )}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-xl font-semibold text-[#0F172A] group-hover:text-purple-600 transition-colors">
+                                  {milestone.name}
+                                </h3>
+                              </div>
+                              {milestone.description && (
+                                <p className="text-sm text-[#64748B] mb-2">
+                                  {milestone.description}
+                                </p>
+                              )}
+                              {milestone["Due date"] && (
+                                <p className="text-xs text-[#64748B] mb-3">
+                                  Due: {new Date(milestone["Due date"]).toLocaleDateString()}
+                                </p>
+                              )}
+                              {milestoneTasks.length > 0 && (
+                                <div className="mt-3">
+                                  <div className="flex justify-between text-sm font-semibold text-[#64748B] mb-2">
+                                    <span>Progress</span>
+                                    <span className="text-[#6B21A8]">{progress}%</span>
+                                  </div>
+                                  <div className="w-full bg-[#E5E7EB] rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className="bg-gradient-to-r from-[#6B21A8] to-[#9333EA] h-2 rounded-full transition-all duration-500"
+                                      style={{ width: `${progress}%` }}
+                                    />
                                   </div>
                                 </div>
+                              )}
+                            </div>
+                          </button>
+                        </CollapsibleTrigger>
+
+                        {/* Tasks for this milestone */}
+                        <CollapsibleContent>
+                          {milestoneTasks.length > 0 ? (
+                            <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
+                              <h4 className="text-sm font-semibold text-[#0F172A] mb-3">
+                                Tasks ({completedTasks}/{milestoneTasks.length})
+                              </h4>
+                              <div className="space-y-2">
+                                {milestoneTasks.map((task) => (
+                                  <div
+                                    key={task.id}
+                                    className="p-3 bg-[#FAFAFA] rounded-lg border border-[#E5E7EB]"
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <p className="font-medium text-[#0F172A]">
+                                            {task.name}
+                                          </p>
+                                          <span
+                                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getTaskStatusClass(
+                                              task.status
+                                            )}`}
+                                          >
+                                            {task.status.replace("-", " ").toUpperCase()}
+                                          </span>
+                                          <span
+                                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getPriorityClass(
+                                              task.priority
+                                            )}`}
+                                          >
+                                            {task.priority.toUpperCase()}
+                                          </span>
+                                        </div>
+                                        {task.description && (
+                                          <p className="text-sm text-[#64748B]">
+                                            {task.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
-                          <p className="text-sm text-[#64748B]">
-                            No tasks for this milestone yet.
-                          </p>
-                        </div>
-                      )}
-                    </Card>
+                            </div>
+                          ) : (
+                            <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
+                              <p className="text-sm text-[#64748B]">
+                                No tasks for this milestone yet.
+                              </p>
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </Card>
+                    </Collapsible>
                   );
                 })}
               </div>

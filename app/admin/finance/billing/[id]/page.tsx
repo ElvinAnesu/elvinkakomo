@@ -232,6 +232,50 @@ export default function InvoiceDetailPage({ params }: PageProps) {
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
+        ignoreElements: (element) => {
+          // Ignore elements that might cause issues
+          return false;
+        },
+        onclone: (clonedDoc) => {
+          // Override problematic colors while preserving layout
+          const clonedElement = clonedDoc.querySelector('[data-invoice-content]');
+          if (clonedElement) {
+            // Replace lab() colors in all style elements
+            const styleElements = clonedDoc.querySelectorAll('style');
+            styleElements.forEach(style => {
+              if (style.textContent) {
+                // Replace any lab() color functions with black
+                style.textContent = style.textContent.replace(/lab\([^)]+\)/g, 'rgb(0, 0, 0)');
+                style.textContent = style.textContent.replace(/oklch\([^)]+\)/g, 'rgb(0, 0, 0)');
+                style.textContent = style.textContent.replace(/lch\([^)]+\)/g, 'rgb(0, 0, 0)');
+              }
+            });
+            
+            // Override inline styles that might have lab() colors
+            const allElements = clonedElement.querySelectorAll('*');
+            allElements.forEach((el) => {
+              const element = el as HTMLElement;
+              
+              // Only override color-related properties, keep layout intact
+              try {
+                const computedStyle = window.getComputedStyle(element);
+                
+                // Override colors with simple RGB values
+                if (computedStyle.color && (computedStyle.color.includes('lab') || computedStyle.color.includes('lch') || computedStyle.color.includes('oklch'))) {
+                  element.style.color = 'rgb(0, 0, 0)';
+                }
+                if (computedStyle.backgroundColor && (computedStyle.backgroundColor.includes('lab') || computedStyle.backgroundColor.includes('lch') || computedStyle.backgroundColor.includes('oklch'))) {
+                  element.style.backgroundColor = 'rgb(255, 255, 255)';
+                }
+                if (computedStyle.borderColor && (computedStyle.borderColor.includes('lab') || computedStyle.borderColor.includes('lch') || computedStyle.borderColor.includes('oklch'))) {
+                  element.style.borderColor = 'rgb(0, 0, 0)';
+                }
+              } catch (e) {
+                // Silently fail for elements that can't be styled
+              }
+            });
+          }
+        },
       });
 
       // Restore header actions
@@ -307,7 +351,7 @@ export default function InvoiceDetailPage({ params }: PageProps) {
 
       {/* Invoice Document */}
       <div className="max-w-4xl mx-auto px-8 py-12">
-        <div ref={invoiceRef}>
+        <div ref={invoiceRef} data-invoice-content>
           <Card className="bg-white shadow-lg">
           {/* Invoice Header */}
           <div className="border-b border-[#E5E7EB] pb-8 mb-8">
@@ -337,27 +381,15 @@ export default function InvoiceDetailPage({ params }: PageProps) {
               <p className="text-lg font-semibold text-[#0F172A] mb-1">{invoice.clientName || "Unknown Client"}</p>
             </div>
             <div className="text-right md:text-left">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-[#64748B] mb-1">Invoice Date</p>
-                  <p className="text-base font-medium text-[#0F172A]">
-                    {new Date(invoice.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-[#64748B] mb-1">Due Date</p>
-                  <p className="text-base font-medium text-[#0F172A]">
-                    {new Date(invoice.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
+              <div>
+                <p className="text-sm text-[#64748B] mb-1">Invoice Date</p>
+                <p className="text-base font-medium text-[#0F172A]">
+                  {new Date(invoice.created_at).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
               </div>
             </div>
           </div>
@@ -440,9 +472,6 @@ export default function InvoiceDetailPage({ params }: PageProps) {
           <div className="mt-12 pt-8 border-t border-[#E5E7EB]">
             <p className="text-xs text-[#64748B] text-center">
               Thank you for your business!
-            </p>
-            <p className="text-xs text-[#64748B] text-center mt-2">
-              Payment terms: Net 30 days
             </p>
           </div>
         </Card>

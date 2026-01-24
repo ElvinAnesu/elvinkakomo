@@ -9,10 +9,32 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ArrowLeft, ChevronDown, X, Save, Plus, Trash2, Edit2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, X, Save, Plus, Trash2, Edit2, ChevronRight, GripVertical } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Client {
   id: string;
@@ -36,6 +58,7 @@ interface Milestone {
   name: string;
   description: string;
   "Due date": string;
+  position: number;
 }
 
 interface Task {
@@ -77,6 +100,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
     priority: "normal" | "low" | "high";
     dueDate: string;
   } | null>(null);
+  const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
 
   const [formData, setFormData] = useState<Project>({
     id: id,
@@ -138,7 +162,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
             .from("project_milestones")
             .select("*")
             .eq("project", id)
-            .order("created_at", { ascending: false });
+            .order("position", { ascending: true });
 
           if (!milestonesError && milestonesData) {
             setMilestones(milestonesData);
@@ -191,6 +215,14 @@ export default function ProjectDetailPage({ params }: PageProps) {
       client.email.toLowerCase().includes(clientSearch.toLowerCase())
     );
   }, [clients, clientSearch]);
+
+  // Drag and drop sensors - MUST be called before any conditional returns
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   if (loading) {
     return (
@@ -337,6 +369,12 @@ export default function ProjectDetailPage({ params }: PageProps) {
     }
 
     try {
+      // Calculate the next position
+      const maxPosition = milestones.length > 0 
+        ? Math.max(...milestones.map(m => m.position || 0))
+        : 0;
+      const nextPosition = maxPosition + 1;
+
       const { data, error } = await supabase
         .from("project_milestones")
         .insert({
@@ -344,6 +382,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
           name: newMilestoneForm.title,
           description: newMilestoneForm.description || "",
           "Due date": newMilestoneForm.dueDate,
+          position: nextPosition,
         })
         .select()
         .single();
@@ -565,6 +604,59 @@ export default function ProjectDetailPage({ params }: PageProps) {
     return tasks.filter((t) => t.mileston === milestoneId);
   };
 
+  const toggleMilestone = (milestoneId: string) => {
+    setExpandedMilestones((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(milestoneId)) {
+        newSet.delete(milestoneId);
+      } else {
+        newSet.add(milestoneId);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle drag end
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = milestones.findIndex((m) => m.id === active.id);
+    const newIndex = milestones.findIndex((m) => m.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Update local state immediately for smooth UX
+    const reorderedMilestones = arrayMove(milestones, oldIndex, newIndex);
+    setMilestones(reorderedMilestones);
+
+    // Update positions in database
+    try {
+      const updates = reorderedMilestones.map((milestone, index) => ({
+        id: milestone.id,
+        position: index + 1,
+      }));
+
+      // Update all affected milestones
+      for (const update of updates) {
+        await supabase
+          .from("project_milestones")
+          .update({ position: update.position })
+          .eq("id", update.id);
+      }
+    } catch (error) {
+      console.error("Error updating milestone positions:", error);
+      alert("Failed to update milestone order. Please try again.");
+      // Revert to original order on error
+      setMilestones(milestones);
+    }
+  };
+
   // Map task status to display format
   const getTaskStatusDisplay = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -584,6 +676,298 @@ export default function ProjectDetailPage({ params }: PageProps) {
       high: "High",
     };
     return priorityMap[priority] || priority;
+  };
+
+  // Sortable Milestone Component
+  const SortableMilestone = ({ milestone }: { milestone: Milestone }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: milestone.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div ref={setNodeRef} style={style}>
+        <Collapsible
+          open={expandedMilestones.has(milestone.id)}
+          onOpenChange={() => toggleMilestone(milestone.id)}
+        >
+          <Card className="border-l-4 border-l-purple-500">
+            <div className="flex justify-between items-start mb-4">
+              {/* Drag Handle */}
+              <div
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded"
+              >
+                <GripVertical className="h-5 w-5 text-[#64748B]" />
+              </div>
+
+              <CollapsibleTrigger asChild>
+                <button className="flex items-start gap-2 flex-1 text-left group">
+                  <ChevronRight
+                    className={cn(
+                      "h-5 w-5 mt-0.5 text-[#64748B] transition-transform duration-200 flex-shrink-0",
+                      expandedMilestones.has(milestone.id) && "rotate-90"
+                    )}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-xl font-semibold text-[#0F172A] group-hover:text-purple-600 transition-colors">
+                        {milestone.name}
+                      </h3>
+                    </div>
+                    {milestone.description && (
+                      <p className="text-sm text-[#64748B] mb-2">
+                        {milestone.description}
+                      </p>
+                    )}
+                    {milestone["Due date"] && (
+                      <p className="text-xs text-[#64748B]">
+                        Due: {new Date(milestone["Due date"]).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditMilestone(milestone);
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteMilestone(milestone.id);
+                  }}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Tasks for this milestone */}
+            <CollapsibleContent>
+              <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-sm font-semibold text-[#0F172A]">Tasks</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNewTaskForm({
+                        milestoneId: milestone.id,
+                        title: "",
+                        description: "",
+                        status: "to-do",
+                        priority: "normal",
+                        dueDate: "",
+                      });
+                      setEditingTask(null);
+                    }}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Task
+                  </Button>
+                </div>
+
+                {/* Add/Edit Task Form */}
+                {newTaskForm && newTaskForm.milestoneId === milestone.id && (
+                  <Card className="mb-4 bg-[#FAFAFA]">
+                    <h5 className="text-sm font-semibold text-[#0F172A] mb-3">
+                      {editingTask ? "Edit Task" : "New Task"}
+                    </h5>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-[#0F172A]">
+                            Title *
+                          </label>
+                          <input
+                            type="text"
+                            value={newTaskForm.title}
+                            onChange={(e) =>
+                              setNewTaskForm({ ...newTaskForm, title: e.target.value })
+                            }
+                            className="w-full px-2 py-1.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent"
+                            placeholder="Task title"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-[#0F172A]">
+                          Description
+                        </label>
+                        <textarea
+                          value={newTaskForm.description}
+                          onChange={(e) =>
+                            setNewTaskForm({ ...newTaskForm, description: e.target.value })
+                          }
+                          className="w-full px-2 py-1.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent resize-none"
+                          rows={2}
+                          placeholder="Task description"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-[#0F172A]">
+                            Status
+                          </label>
+                          <select
+                            value={newTaskForm.status}
+                            onChange={(e) =>
+                              setNewTaskForm({
+                                ...newTaskForm,
+                                status: e.target.value as "to-do" | "in-progress" | "review" | "done",
+                              })
+                            }
+                            className="w-full px-2 py-1.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent"
+                          >
+                            <option value="to-do">Todo</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="review">Review</option>
+                            <option value="done">Done</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-[#0F172A]">
+                            Priority
+                          </label>
+                          <select
+                            value={newTaskForm.priority}
+                            onChange={(e) =>
+                              setNewTaskForm({
+                                ...newTaskForm,
+                                priority: e.target.value as "normal" | "low" | "high",
+                              })
+                            }
+                            className="w-full px-2 py-1.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent"
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="low">Low</option>
+                            <option value="high">High</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            if (editingTask) {
+                              updateTask(editingTask);
+                            } else {
+                              addTask(milestone.id);
+                            }
+                          }}
+                          className="gradient-purple text-white"
+                        >
+                          {editingTask ? "Update Task" : "Add Task"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setNewTaskForm(null);
+                            setEditingTask(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Tasks List */}
+                <div className="space-y-2">
+                  {getTasksForMilestone(milestone.id).length === 0 ? (
+                    <p className="text-sm text-[#64748B] py-2">No tasks yet</p>
+                  ) : (
+                    getTasksForMilestone(milestone.id).map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start justify-between p-3 bg-[#FAFAFA] rounded-lg border border-[#E5E7EB]"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h5 className="font-medium text-[#0F172A]">{task.name}</h5>
+                            <span
+                              className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                task.status === "done"
+                                  ? "bg-green-100 text-green-700"
+                                  : task.status === "in-progress"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : task.status === "review"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {getTaskStatusDisplay(task.status)}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                task.priority === "high"
+                                  ? "bg-red-100 text-red-700"
+                                  : task.priority === "normal"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {getTaskPriorityDisplay(task.priority)}
+                            </span>
+                          </div>
+                          {task.description && (
+                            <p className="text-xs text-[#64748B] mb-1">{task.description}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => startEditTask(task)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => deleteTask(task.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      </div>
+    );
   };
 
   return (
@@ -955,254 +1339,30 @@ export default function ProjectDetailPage({ params }: PageProps) {
           )}
 
           {/* Milestones List */}
-          <div className="space-y-6">
-            {milestones.map((milestone) => (
-              <Card key={milestone.id} className="border-l-4 border-l-purple-500">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold text-[#0F172A]">
-                        {milestone.name}
-                      </h3>
-                    </div>
-                    {milestone.description && (
-                      <p className="text-sm text-[#64748B] mb-2">
-                        {milestone.description}
-                      </p>
-                    )}
-                    {milestone["Due date"] && (
-                      <p className="text-xs text-[#64748B]">
-                        Due: {new Date(milestone["Due date"]).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => startEditMilestone(milestone)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => deleteMilestone(milestone.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={milestones.map((m) => m.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-6">
+                {milestones.map((milestone) => (
+                  <SortableMilestone key={milestone.id} milestone={milestone} />
+                ))}
 
-                {/* Tasks for this milestone */}
-                <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-sm font-semibold text-[#0F172A]">Tasks</h4>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setNewTaskForm({
-                          milestoneId: milestone.id,
-                          title: "",
-                          description: "",
-                          status: "to-do",
-                          priority: "normal",
-                          dueDate: "",
-                        });
-                        setEditingTask(null);
-                      }}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Task
-                    </Button>
-                  </div>
-
-                  {/* Add/Edit Task Form */}
-                  {newTaskForm && newTaskForm.milestoneId === milestone.id && (
-                    <Card className="mb-4 bg-[#FAFAFA]">
-                      <h5 className="text-sm font-semibold text-[#0F172A] mb-3">
-                        {editingTask ? "Edit Task" : "New Task"}
-                      </h5>
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-[#0F172A]">
-                              Title *
-                            </label>
-                            <input
-                              type="text"
-                              value={newTaskForm.title}
-                              onChange={(e) =>
-                                setNewTaskForm({ ...newTaskForm, title: e.target.value })
-                              }
-                              className="w-full px-2 py-1.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent"
-                              placeholder="Task title"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-[#0F172A]">
-                            Description
-                          </label>
-                          <textarea
-                            value={newTaskForm.description}
-                            onChange={(e) =>
-                              setNewTaskForm({ ...newTaskForm, description: e.target.value })
-                            }
-                            className="w-full px-2 py-1.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent resize-none"
-                            rows={2}
-                            placeholder="Task description"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-[#0F172A]">
-                              Status
-                            </label>
-                            <select
-                              value={newTaskForm.status}
-                              onChange={(e) =>
-                                setNewTaskForm({
-                                  ...newTaskForm,
-                                  status: e.target.value as "to-do" | "in-progress" | "review" | "done",
-                                })
-                              }
-                              className="w-full px-2 py-1.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent"
-                            >
-                              <option value="to-do">Todo</option>
-                              <option value="in-progress">In Progress</option>
-                              <option value="review">Review</option>
-                              <option value="done">Done</option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-[#0F172A]">
-                              Priority
-                            </label>
-                            <select
-                              value={newTaskForm.priority}
-                              onChange={(e) =>
-                                setNewTaskForm({
-                                  ...newTaskForm,
-                                  priority: e.target.value as "normal" | "low" | "high",
-                                })
-                              }
-                              className="w-full px-2 py-1.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent"
-                            >
-                              <option value="normal">Normal</option>
-                              <option value="low">Low</option>
-                              <option value="high">High</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              if (editingTask) {
-                                updateTask(editingTask);
-                              } else {
-                                addTask(milestone.id);
-                              }
-                            }}
-                            className="gradient-purple text-white"
-                          >
-                            {editingTask ? "Update Task" : "Add Task"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setNewTaskForm(null);
-                              setEditingTask(null);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* Tasks List */}
-                  <div className="space-y-2">
-                    {getTasksForMilestone(milestone.id).length === 0 ? (
-                      <p className="text-sm text-[#64748B] py-2">No tasks yet</p>
-                    ) : (
-                      getTasksForMilestone(milestone.id).map((task) => (
-                        <div
-                          key={task.id}
-                          className="flex items-start justify-between p-3 bg-[#FAFAFA] rounded-lg border border-[#E5E7EB]"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h5 className="font-medium text-[#0F172A]">{task.name}</h5>
-                              <span
-                                className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                  task.status === "done"
-                                    ? "bg-green-100 text-green-700"
-                                    : task.status === "in-progress"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : task.status === "review"
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {getTaskStatusDisplay(task.status)}
-                              </span>
-                              <span
-                                className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                  task.priority === "high"
-                                    ? "bg-red-100 text-red-700"
-                                    : task.priority === "normal"
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {getTaskPriorityDisplay(task.priority)}
-                              </span>
-                            </div>
-                            {task.description && (
-                              <p className="text-xs text-[#64748B] mb-1">{task.description}</p>
-                            )}
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => startEditTask(task)}
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => deleteTask(task.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))}
-
-            {milestones.length === 0 && (
-              <Card>
-                <p className="text-center text-[#64748B] py-8">
-                  No milestones yet. Click &quot;Add Milestone&quot; to get started.
-                </p>
-              </Card>
-            )}
-          </div>
+                {milestones.length === 0 && (
+                  <Card>
+                    <p className="text-center text-[#64748B] py-8">
+                      No milestones yet. Click &quot;Add Milestone&quot; to get started.
+                    </p>
+                  </Card>
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
     </div>
