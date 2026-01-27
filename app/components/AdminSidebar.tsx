@@ -17,6 +17,7 @@ export default function AdminSidebar() {
   const sections = [
     { id: "overview", label: "Overview", icon: "📊", href: "/admin" },
     { id: "projects", label: "Projects", icon: "🚀", href: "/admin/projects" },
+    { id: "call-requests", label: "Call Requests", icon: "📞", href: "/admin/call-requests" },
     {
       id: "finances",
       label: "Finances",
@@ -27,7 +28,8 @@ export default function AdminSidebar() {
       ],
     },
     { id: "clients", label: "Clients", icon: "👥", href: "/admin/clients" },
-  ];
+   
+    ];
 
   const handleSectionClick = (sectionId: string) => {
     if (sectionId === "finances") {

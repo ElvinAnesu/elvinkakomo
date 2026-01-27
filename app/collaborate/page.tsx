@@ -1,16 +1,17 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import { supabase } from "@/lib/supabase";
 
 export default function Collaborate() {
   const [action, setAction] = useState<"select" | "schedule" | "login">("select");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
   const [projectOverview, setProjectOverview] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -23,19 +24,28 @@ export default function Collaborate() {
     setLoading(true);
 
     try {
-      // In a real app, this would send data to your backend/API
-      // For now, we'll just simulate a successful submission
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      setSuccess(true);
-      // Reset form after showing success
-      setTimeout(() => {
+      const { data, error } = await supabase
+        .from("call_requests")
+        .insert({
+          name,
+          email,
+          phonenumber: phone,
+          project_overview: projectOverview,
+        });
+
+      if (error) {
+        setError("Failed to submit. Please try again.");
+        return;
+      }
+
+        setSuccess(true);
         setEmail("");
         setPhone("");
-        setProjectOverview("");
-        setSuccess(false);
+        setName("");
         setAction("select");
-      }, 3000);
+
+
     } catch (err) {
       setError("Failed to submit. Please try again.");
     } finally {
@@ -166,6 +176,23 @@ export default function Collaborate() {
                   <form onSubmit={handleScheduleCall} className="space-y-4">
                     <div>
                       <label
+                        htmlFor="name"
+                        className="block text-sm font-semibold text-[#0F172A] mb-2"
+                      >
+                        Name *
+                      </label>
+                      <input
+                        id="name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 border-2 border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-[#6B21A8] transition-all text-sm"
+                        placeholder="Enter your name"
+                      />
+                    </div>
+                    <div>
+                      <label
                         htmlFor="email"
                         className="block text-sm font-semibold text-[#0F172A] mb-2"
                       >
@@ -236,6 +263,7 @@ export default function Collaborate() {
                           setError("");
                           setEmail("");
                           setPhone("");
+                          setName("");
                           setProjectOverview("");
                         }}
                         className="flex-1 px-4 py-2.5 text-sm"
