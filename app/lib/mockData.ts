@@ -231,6 +231,17 @@ export const solutions: Solution[] = [
     link: "https://intellimark-gamma.vercel.app/",
     tryNow: true,
   },
+  {
+    id: "2",
+    name: "Head To Head",
+    description: "Youtube video comparison tool that allows you to compare two videos side by side. Great for content creators to see how their videos perform against competitors and great for corporates when choosing brand ambassadors or partners to work with in marketing",
+    technologies: ["React Js", "Vite", "TypeScript", "RESTful API"],
+    pricing: "Free",
+    category: "Social Media Tools",
+    image: "/solutions/headtohead.png",
+    link: "https://channel-showdown.vercel.app/",
+    tryNow: true,
+  },
 ];
 
 export interface Transaction {
