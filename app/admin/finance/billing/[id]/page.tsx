@@ -37,6 +37,8 @@ interface Invoice {
   notes: string | null;
   items: InvoiceItem[];
   total: number;
+  amount_paid: number;
+  amount_due: number;
 }
 
 interface PageProps {
@@ -71,6 +73,8 @@ export default function InvoiceDetailPage({ params }: PageProps) {
             client,
             is_paid,
             notes,
+            amount_paid,
+            amount_due,
             profiles:client (
               id,
               name,
@@ -115,6 +119,8 @@ export default function InvoiceDetailPage({ params }: PageProps) {
             notes: invoiceData.notes,
             items,
             total,
+            amount_paid: invoiceData.amount_paid,
+            amount_due: invoiceData.amount_due,
           });
         }
       } catch (error) {
@@ -456,6 +462,16 @@ export default function InvoiceDetailPage({ params }: PageProps) {
                 <span className="text-2xl font-bold text-green-600">
                   ${invoice.total.toFixed(2)}
                 </span>
+              </div>
+              <div className="flex justify-between text-sm text-[#64748B]">
+                <span>Amount Paid</span>
+                <span className="text-[#0F172A] font-medium">
+                  ${invoice.amount_paid.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm text-[#64748B]">
+                <span>Amount Due</span>
+                <span className="text-red-500 font-bold">${invoice.amount_due.toFixed(2)}</span>
               </div>
             </div>
           </div>

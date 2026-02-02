@@ -1,8 +1,7 @@
 "use client";
-
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Card from "../../../../components/Card";
+import Card from "@/app/components/Card";
 import { Button } from "@/components/ui/button";
 import {
   Popover,

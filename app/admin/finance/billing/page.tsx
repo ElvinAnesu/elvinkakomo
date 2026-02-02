@@ -31,7 +31,7 @@ interface Invoice {
   clientName?: string;
   is_paid: boolean;
   notes: string | null;
-  total?: number;
+  total: number;
 }
 
 export default function BillingPage() {
@@ -55,6 +55,7 @@ export default function BillingPage() {
             client,
             is_paid,
             notes,
+            total,
             profiles:client (
               id,
               name,
@@ -69,32 +70,14 @@ export default function BillingPage() {
           return;
         }
 
-        // Fetch invoice items separately
+       
         if (invoicesData) {
-          const invoiceIds = invoicesData.map((inv) => inv.id);
-          const { data: itemsData } = await supabase
-            .from("invoice_items")
-            .select("invoice, total")
-            .in("invoice", invoiceIds);
-
-          // Create a map of invoice ID to total
-          const invoiceTotals = new Map<number, number>();
-          if (itemsData) {
-            itemsData.forEach((item) => {
-              const invoiceId = item.invoice as number;
-              const currentTotal = invoiceTotals.get(invoiceId) || 0;
-              invoiceTotals.set(invoiceId, currentTotal + parseFloat(item.total?.toString() || "0"));
-            });
-          }
 
           // Process invoices to include client name and calculate total
           const processedInvoices = invoicesData.map((invoice) => {
             const clientInfo = invoice.profiles && typeof invoice.profiles === 'object' && !Array.isArray(invoice.profiles) && 'name' in invoice.profiles
               ? (invoice.profiles as { name: string; id: string })
               : null;
-
-            // Get total from the map
-            const total = invoiceTotals.get(invoice.id) || 0;
 
             return {
               id: invoice.id,
@@ -103,7 +86,7 @@ export default function BillingPage() {
               clientName: clientInfo?.name || "Unknown Client",
               is_paid: invoice.is_paid,
               notes: invoice.notes,
-              total,
+              total: invoice.total,
             };
           });
 

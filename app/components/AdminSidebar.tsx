@@ -24,6 +24,7 @@ export default function AdminSidebar() {
       icon: "💵",
       children: [
         { id: "billing", label: "Billing", href: "/admin/finance/billing" },
+        { id: "payments", label: "Payments", href: "/admin/finance/payments" },
         { id: "expenses", label: "Expenses", href: "/admin/finance/expenses" },
       ],
     },
