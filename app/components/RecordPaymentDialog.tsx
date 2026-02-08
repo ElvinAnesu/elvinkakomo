@@ -46,10 +46,15 @@ export default function RecordPaymentDialog() {
             remarks: remarks,
             payment_date: paymentDate,
         });
+        const newAmountPaid = (invoice?.amount_paid?? 0) + amount;
+        const newAmountDue = (invoice?.total?? 0) - newAmountPaid;
+        console.log('New Amount Paid: ', newAmountPaid, 'New Amount Due: ', newAmountDue);
         await supabase.from("invoices").update({
-            amount_paid: (invoice?.amount_paid?? 0) + amount,
-            amount_due: (invoice?.amount_due?? 0) - amount,
-        }).eq("id", invoiceNumber);
+            amount_paid: newAmountPaid,
+            amount_due: newAmountDue,
+        }).eq("id", invoiceNumber)
+        .select()
+        .single();
 
         if (error) {
             console.error("Error updating invoice:", error);
