@@ -12,6 +12,9 @@ type Invoice = {
     client: string;
     is_paid: boolean;
     notes: string;
+    total: number;
+    amount_paid: number;
+    amount_due: number;
 };
 
 export default function RecordPaymentDialog() {
@@ -22,6 +25,8 @@ export default function RecordPaymentDialog() {
     const [paymentDate, setPaymentDate] = useState(new Date()); 
     const [invoices, setInvoices] = useState<Invoice[]>([]); 
     const [loading, setLoading] = useState(false);
+    const [invoice, setInvoice] = useState<Invoice | null>(null);
+    
 
     
     useEffect(() => {
@@ -41,6 +46,19 @@ export default function RecordPaymentDialog() {
             remarks: remarks,
             payment_date: paymentDate,
         });
+        await supabase.from("invoices").update({
+            amount_paid: (invoice?.amount_paid?? 0) + amount,
+            amount_due: (invoice?.amount_due?? 0) - amount,
+        }).eq("id", invoiceNumber);
+
+        if (error) {
+            console.error("Error updating invoice:", error);
+            toast.error("Failed to update invoice");
+        } else {
+            console.log("Invoice updated successfully:", data);
+            toast.success("Invoice updated successfully");
+        }
+
         if (error) {
             console.error("Error recording payment:", error);
             toast.error("Failed to record payment");
@@ -65,6 +83,11 @@ export default function RecordPaymentDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
+          {invoice && (
+            <DialogDescription>
+             Total: ${invoice.total} - Amount Paid: ${invoice.amount_paid} - Amount Due: ${invoice.amount_due}
+            </DialogDescription>
+          )}
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div>
@@ -76,7 +99,10 @@ export default function RecordPaymentDialog() {
                 </label>
                 <select id="invoice" className="w-full px-3 py-2 border-2 border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-[#6B21A8] transition-all text-sm"
                 value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(Number(e.target.value))}
+                onChange={(e) => {
+                    setInvoiceNumber(Number(e.target.value));
+                    setInvoice(invoices.find(invoice => invoice.id === Number(e.target.value)) || null);
+                }}
                 >
                     <option value="">Select Invoice</option>
                     {invoices.map((invoice) => (
