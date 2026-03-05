@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useRef } from "react";
+import { use, useState, useEffect } from "react";
 import Card from "../../../components/Card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 interface InvoiceItem {
   id: number;
@@ -39,7 +38,6 @@ export default function InvoiceDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
-  const invoiceRef = useRef<HTMLDivElement>(null);
 
   // Fetch invoice from Supabase
   useEffect(() => {
@@ -183,55 +181,149 @@ export default function InvoiceDetailPage({ params }: PageProps) {
     );
   }
 
-  const handleDownload = async () => {
-    if (!invoice || !invoiceRef.current) return;
+  const handleDownload = () => {
+    if (!invoice) return;
 
     setIsGeneratingPDF(true);
 
     try {
-      // Hide the header actions temporarily
-      const headerActions = document.querySelector('[data-invoice-header]');
-      if (headerActions) {
-        (headerActions as HTMLElement).style.display = 'none';
-      }
+      const doc = new jsPDF("p", "mm", "a4");
+      const pageW = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      const col1 = margin;
+      const col3 = 110;
+      const col4 = 140;
+      const col5 = pageW - margin;
+      let y = margin;
 
-      // Generate canvas from invoice content
-      const canvas = await html2canvas(invoiceRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
+      const line = (yPos: number) => {
+        doc.setDrawColor(229, 231, 235);
+        doc.line(margin, yPos, pageW - margin, yPos);
+      };
+
+      doc.setFontSize(24);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      doc.text("INVOICE", col1, y);
+      y += 6;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Invoice #${invoice.id}`, col1, y);
+      y += 10;
+
+      doc.setTextColor(15, 23, 42);
+      doc.text(invoice.is_paid ? "Paid" : "Outstanding", col5, y - 10, { align: "right" });
+      doc.setTextColor(100, 116, 139);
+      doc.text("Elvin Kakomo", col5, y - 4, { align: "right" });
+      doc.text("Product Engineer", col5, y + 2, { align: "right" });
+      y += 4;
+
+      line(y);
+      y += 14;
+
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text("BILL TO", col1, y);
+      y += 6;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      doc.text(invoice.customerName || "Customer", col1, y);
+      y += 10;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Invoice Date", col5, y - 10, { align: "right" });
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      const invoiceDate = new Date(invoice.created_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       });
+      doc.text(invoiceDate, col5, y - 4, { align: "right" });
+      y += 12;
 
-      // Restore header actions
-      if (headerActions) {
-        (headerActions as HTMLElement).style.display = '';
+      line(y);
+      y += 7;
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Description", col1, y);
+      doc.text("Quantity", col4, y, { align: "right" });
+      doc.text("Price", col3, y, { align: "right" });
+      doc.text("Total", col5, y, { align: "right" });
+      y += 6;
+      line(y);
+      y += 8;
+
+      doc.setTextColor(15, 23, 42);
+      const itemDescMaxW = col3 - 60;
+      for (const item of invoice.items) {
+        const descLines = doc.splitTextToSize(item.item_description, itemDescMaxW);
+        const rowH = Math.max(6, descLines.length * 5);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(descLines, col1, y + rowH / 2 - (descLines.length - 1) * 2.5);
+        doc.text(String(item.quantity), col4, y + rowH / 2 - 1.5, { align: "right" });
+        doc.text(`$${parseFloat(item.price.toString()).toFixed(2)}`, col3, y + rowH / 2 - 1.5, { align: "right" });
+        doc.text(`$${parseFloat(item.total.toString()).toFixed(2)}`, col5, y + rowH / 2 - 1.5, { align: "right" });
+        y += rowH + 2;
+        if (y > 260) {
+          doc.addPage();
+          y = margin;
+        }
       }
 
-      // Calculate PDF dimensions
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
+      y += 6;
+      line(y);
+      y += 12;
 
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      let position = 0;
+      const totX = col5 - 50;
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Subtotal", totX, y, { align: "right" });
+      doc.setTextColor(15, 23, 42);
+      doc.text(`$${invoice.total.toFixed(2)}`, col5, y, { align: "right" });
+      y += 6;
+      doc.setTextColor(100, 116, 139);
+      doc.text("Tax (0%)", totX, y, { align: "right" });
+      doc.setTextColor(15, 23, 42);
+      doc.text("$0.00", col5, y, { align: "right" });
+      y += 8;
+      doc.setDrawColor(229, 231, 235);
+      doc.line(totX, y - 2, col5, y - 2);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Total", totX, y + 5, { align: "right" });
+      doc.text(`$${invoice.total.toFixed(2)}`, col5, y + 5, { align: "right" });
+      y += 14;
 
-      // Add first page
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      // Add additional pages if content is longer than one page
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      if (invoice.notes) {
+        doc.setDrawColor(229, 231, 235);
+        doc.line(margin, y, pageW - margin, y);
+        y += 10;
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.text("NOTES", margin, y);
+        y += 6;
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        const noteLines = doc.splitTextToSize(invoice.notes, pageW - 2 * margin);
+        doc.text(noteLines, margin, y);
+        y += noteLines.length * 5 + 10;
       }
 
-      // Download PDF
-      pdf.save(`Invoice-${invoice.id}.pdf`);
+      doc.setDrawColor(229, 231, 235);
+      doc.line(margin, y, pageW - margin, y);
+      y += 10;
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Thank you for your business!", pageW / 2, y, { align: "center" });
+      doc.text("Payment terms: Net 30 days", pageW / 2, y + 5, { align: "center" });
+
+      doc.save(`Invoice-${invoice.id}.pdf`);
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF. Please try again.");
@@ -266,7 +358,7 @@ export default function InvoiceDetailPage({ params }: PageProps) {
 
       {/* Invoice Document */}
       <div className="max-w-4xl mx-auto px-8 py-12">
-        <div ref={invoiceRef}>
+        <div>
           <Card className="bg-white shadow-lg">
           {/* Invoice Header */}
           <div className="border-b border-[#E5E7EB] pb-8 mb-8">

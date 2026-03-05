@@ -18,7 +18,7 @@ export default async function AdminPayments() {
   const { data: payments, error } = await supabaseServer
     .from("payments")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("payment_date", { ascending: false });
   if (error) {
     console.error("Error fetching payments:", error);
     return;
