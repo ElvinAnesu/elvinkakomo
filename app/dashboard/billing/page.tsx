@@ -6,13 +6,24 @@ import Link from "next/link";
 import Card from "../../components/Card";
 import { supabase } from "@/lib/supabase";
 
+interface Payment {
+  id: number;
+  amount: number;
+  payment_date: string;
+  remarks: string | null;
+}
+
 interface Invoice {
   id: number;
   created_at: string;
   client: string;
   is_paid: boolean;
   notes: string | null;
+  total: number;
+  amount_paid: number;
+  amount_due: number;
   invoice_items: InvoiceItem[];
+  payments?: Payment[] | null;
 }
 
 interface InvoiceItem {
@@ -75,7 +86,7 @@ export default function BillingPage() {
 
       const clientId = profile.id;
 
-      // Fetch invoices for this client
+      // Fetch invoices for this client (with items and payment history)
       const { data: invoicesData, error: invoicesError } = await supabase
         .from("invoices")
         .select(
@@ -87,11 +98,29 @@ export default function BillingPage() {
             quantity,
             price,
             total
+          ),
+          payments (
+            id,
+            amount,
+            payment_date,
+            remarks
           )
         `
         )
         .eq("client", clientId)
         .order("created_at", { ascending: false });
+
+      // Sort payments by payment_date desc within each invoice
+      if (!invoicesError && invoicesData) {
+        invoicesData.forEach((inv: Invoice) => {
+          if (inv.payments && inv.payments.length > 0) {
+            inv.payments.sort(
+              (a, b) =>
+                new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
+            );
+          }
+        });
+      }
 
       if (invoicesError) {
         console.error("Error fetching invoices:", invoicesError);
@@ -124,14 +153,18 @@ export default function BillingPage() {
       ? invoices.filter((inv) => inv.is_paid)
       : invoices.filter((inv) => !inv.is_paid);
 
-  // Calculate totals
-  const totalPaid = invoices
-    .filter((inv) => inv.is_paid)
-    .reduce((sum, inv) => sum + calculateInvoiceTotal(inv), 0);
+  // Summary totals from adjusted invoice values (amount_paid, amount_due in DB)
+  const totalPaid = invoices.reduce(
+    (sum, inv) => sum + parseFloat(String(inv.amount_paid ?? 0)),
+    0
+  );
+  const totalOutstanding = invoices.reduce(
+    (sum, inv) => sum + parseFloat(String(inv.amount_due ?? 0)),
+    0
+  );
 
-  const totalOutstanding = invoices
-    .filter((inv) => !inv.is_paid)
-    .reduce((sum, inv) => sum + calculateInvoiceTotal(inv), 0);
+  const toNum = (n: number | string): number =>
+    typeof n === "number" ? n : parseFloat(String(n ?? 0));
 
   if (loading) {
     return (
@@ -233,7 +266,10 @@ export default function BillingPage() {
           ) : (
             <div className="space-y-4">
               {filteredInvoices.map((invoice) => {
-                const total = calculateInvoiceTotal(invoice);
+                const invTotal = toNum(invoice.total);
+                const invPaid = toNum(invoice.amount_paid);
+                const invDue = toNum(invoice.amount_due);
+                const payments = invoice.payments ?? [];
                 return (
                   <Link key={invoice.id} href={`/dashboard/billing/${invoice.id}`}>
                     <Card className="cursor-pointer hover:shadow-md transition-shadow">
@@ -246,7 +282,29 @@ export default function BillingPage() {
                             {formatDate(invoice.created_at)}
                           </p>
 
-                        {/* Invoice Items */}
+                          {/* Adjusted invoice values */}
+                          <div className="flex flex-wrap gap-4 mb-4 p-3 bg-[#FAFAFA] rounded-lg border border-[#E5E7EB]">
+                            <div>
+                              <p className="text-xs text-[#64748B] uppercase tracking-wide">Total</p>
+                              <p className="text-base font-semibold text-[#0F172A]">
+                                ${invTotal.toFixed(2)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-[#64748B] uppercase tracking-wide">Amount paid</p>
+                              <p className="text-base font-semibold text-green-600">
+                                ${invPaid.toFixed(2)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-[#64748B] uppercase tracking-wide">Amount due</p>
+                              <p className="text-base font-semibold text-yellow-600">
+                                ${invDue.toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+
+                        {/* Invoice line items */}
                         {invoice.invoice_items && invoice.invoice_items.length > 0 && (
                           <div className="mt-4 space-y-2">
                             <p className="text-sm font-semibold text-[#0F172A] mb-2">
@@ -272,10 +330,41 @@ export default function BillingPage() {
                             ))}
                           </div>
                         )}
+
+                        {/* Payment history */}
+                        {payments.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            <p className="text-sm font-semibold text-[#0F172A] mb-2">
+                              Payment history
+                            </p>
+                            <ul className="space-y-2">
+                              {payments.map((p) => (
+                                <li
+                                  key={p.id}
+                                  className="flex justify-between items-start p-2 bg-white rounded-lg border border-[#E5E7EB] text-sm"
+                                >
+                                  <div className="flex-1">
+                                    <span className="font-medium text-[#0F172A]">
+                                      {formatDate(p.payment_date)}
+                                    </span>
+                                    {p.remarks && (
+                                      <p className="text-xs text-[#64748B] mt-0.5">
+                                        {p.remarks}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <span className="font-semibold text-green-600 whitespace-nowrap ml-2">
+                                    ${toNum(p.amount).toFixed(2)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right ml-6">
                         <p className="text-2xl font-bold text-[#0F172A] mb-2">
-                          ${total.toFixed(2)}
+                          ${invTotal.toFixed(2)}
                         </p>
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${

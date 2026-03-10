@@ -1,6 +1,47 @@
 # Email Templates
 
-This folder contains email templates for Supabase authentication emails.
+This folder contains email templates for Supabase authentication emails and for client notifications (invoice and payment).
+
+## Invoice Created Template
+
+### File:
+- `invoice-created.html` – Notifies the customer when a new invoice has been created.
+
+### When to use:
+Send this email after creating an invoice for a client so they know to log in and download it.
+
+### Template variables:
+- `{{ .Name }}` – Client&apos;s name
+- `{{ .Email }}` – Client&apos;s email address
+- `{{ .Amount }}` – Invoice amount (e.g. &quot;KES 50,000&quot; or &quot;$500.00&quot; – format before sending)
+- `{{ .LoginURL }}` – URL to the app login or dashboard (e.g. `https://yourapp.com/auth/login` or `/dashboard/billing`)
+
+### Subject suggestion:
+`New invoice – Elvin Kakomo` or `Your invoice is ready – Elvin Kakomo`
+
+---
+
+## Payment Recorded Template
+
+### File:
+- `payment-recorded.html` – Notifies the customer when their payment has been recorded.
+
+### When to use:
+Send this email after recording a payment so the client knows they can log in and download invoices/receipts.
+
+### Template variables:
+- `{{ .Name }}` – Client&apos;s name
+- `{{ .Email }}` – Client&apos;s email address
+- `{{ .Amount }}` – Payment amount (e.g. &quot;KES 25,000&quot; or &quot;$250.00&quot; – format before sending)
+- `{{ .InvoiceNumber }}` – Invoice number or ID (e.g. &quot;INV-001&quot; or the invoice id)
+- `{{ .LoginURL }}` – URL to the app login or dashboard (e.g. `https://yourapp.com/auth/login` or `/dashboard/billing`)
+
+### Subject suggestion:
+`Payment received – Elvin Kakomo` or `Your payment has been recorded – Elvin Kakomo`
+
+---
+
+## Invitation Email Template (Supabase Auth)
 
 ## Invitation Email Template
 
