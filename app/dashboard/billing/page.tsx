@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Card from "../../components/Card";
 import { supabase } from "@/lib/supabase";
+import { resolveDashboardClientContext } from "@/lib/dashboard-impersonation";
 
 interface Payment {
   id: number;
@@ -60,31 +61,17 @@ export default function BillingPage() {
       setLoading(true);
       setError(null);
 
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
+      const dashboardContext = await resolveDashboardClientContext();
+      if (!dashboardContext.authenticated) {
         router.push("/auth/login");
         return;
       }
 
-      // Get user profile to get client ID
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError || !profile) {
+      if (!dashboardContext.effectiveClientId) {
         setError("Failed to load profile");
         setLoading(false);
         return;
       }
-
-      const clientId = profile.id;
 
       // Fetch invoices for this client (with items and payment history)
       const { data: invoicesData, error: invoicesError } = await supabase
@@ -107,7 +94,7 @@ export default function BillingPage() {
           )
         `
         )
-        .eq("client", clientId)
+        .eq("client", dashboardContext.effectiveClientId)
         .order("created_at", { ascending: false });
 
       // Sort payments by payment_date desc within each invoice

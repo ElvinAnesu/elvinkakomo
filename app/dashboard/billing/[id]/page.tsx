@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import jsPDF from "jspdf";
+import { resolveDashboardClientContext } from "@/lib/dashboard-impersonation";
 
 interface InvoiceItem {
   id: number;
@@ -44,25 +45,13 @@ export default function InvoiceDetailPage({ params }: PageProps) {
     const fetchInvoice = async () => {
       setLoading(true);
       try {
-        // Get current user
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError || !user) {
+        const dashboardContext = await resolveDashboardClientContext();
+        if (!dashboardContext.authenticated) {
           router.push("/auth/login");
           return;
         }
 
-        // Get user profile to verify ownership and get name
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id, name")
-          .eq("id", user.id)
-          .single();
-
-        if (!profile) {
+        if (!dashboardContext.effectiveClientId) {
           setLoading(false);
           return;
         }
@@ -91,7 +80,7 @@ export default function InvoiceDetailPage({ params }: PageProps) {
             )
           `)
           .eq("id", invoiceId)
-          .eq("client", profile.id)
+          .eq("client", dashboardContext.effectiveClientId)
           .single();
 
         if (invoiceError || !invoiceData) {
@@ -116,7 +105,7 @@ export default function InvoiceDetailPage({ params }: PageProps) {
           notes: invoiceData.notes,
           items,
           total,
-          customerName: profile.name || user.email?.split("@")[0] || "Customer",
+          customerName: dashboardContext.effectiveClientName || "Customer",
         });
       } catch (error) {
         console.error("Error fetching invoice:", error);

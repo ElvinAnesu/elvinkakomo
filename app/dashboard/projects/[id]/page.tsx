@@ -7,6 +7,7 @@ import Card from "../../../components/Card";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { resolveDashboardClientContext } from "@/lib/dashboard-impersonation";
 import {
   Collapsible,
   CollapsibleContent,
@@ -62,25 +63,13 @@ export default function ProjectDetailPage({ params }: PageProps) {
       setLoading(true);
       setError(null);
 
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
+      const dashboardContext = await resolveDashboardClientContext();
+      if (!dashboardContext.authenticated) {
         router.push("/auth/login");
         return;
       }
 
-      // Get user profile to verify ownership
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile) {
+      if (!dashboardContext.effectiveClientId) {
         setError("Failed to load profile");
         setLoading(false);
         return;
@@ -91,7 +80,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
         .from("projects")
         .select("*")
         .eq("id", id)
-        .eq("client", profile.id)
+        .eq("client", dashboardContext.effectiveClientId)
         .single();
 
       if (projectError || !projectData) {

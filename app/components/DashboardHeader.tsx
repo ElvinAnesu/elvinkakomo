@@ -1,18 +1,32 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { resolveDashboardClientContext } from "@/lib/dashboard-impersonation";
 
 export default function DashboardHeader() {
+  const pathname = usePathname();
   const [userName, setUserName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
-  }, []);
+  }, [pathname]);
 
   const fetchUserProfile = async () => {
     try {
+      setLoading(true);
+      if (pathname?.startsWith("/dashboard")) {
+        const dashboardContext = await resolveDashboardClientContext();
+        if (dashboardContext.authenticated) {
+          setUserName(dashboardContext.effectiveClientName);
+          setIsImpersonating(dashboardContext.isImpersonating);
+          return;
+        }
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -32,9 +46,11 @@ export default function DashboardHeader() {
           setUserName(user.email?.split("@")[0] || "User");
         }
       }
+      setIsImpersonating(false);
     } catch (err) {
       console.error("Error fetching user profile:", err);
       setUserName("User");
+      setIsImpersonating(false);
     } finally {
       setLoading(false);
     }
@@ -53,6 +69,11 @@ export default function DashboardHeader() {
           </div>
         ) : (
           <div className="flex items-center gap-3">
+            {isImpersonating && (
+              <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide bg-purple-100 text-purple-700 rounded-md border border-purple-200">
+                Customer View
+              </span>
+            )}
             <div className="w-8 h-8 bg-gradient-to-br from-[#6B21A8] to-[#9333EA] rounded-full flex items-center justify-center text-white font-semibold text-sm">
               {userName.charAt(0).toUpperCase()}
             </div>

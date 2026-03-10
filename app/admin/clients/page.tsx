@@ -35,7 +35,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MoreVertical } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { setStoredImpersonation } from "@/lib/dashboard-impersonation";
 
 interface Client {
   id: string;
@@ -47,6 +49,7 @@ interface Client {
 }
 
 export default function ClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [openPopover, setOpenPopover] = useState<string | null>(null);
@@ -312,6 +315,16 @@ export default function ClientsPage() {
     setOpenPopover(null);
   };
 
+  const handleViewAsCustomer = (clientId: string, clientName: string) => {
+    setStoredImpersonation({
+      clientId,
+      clientName,
+    });
+    setOpenPopover(null);
+    router.push("/dashboard/projects");
+    router.refresh();
+  };
+
   if (loading) {
     return (
       <div className="p-8">
@@ -448,6 +461,12 @@ export default function ClientsPage() {
                             >
                               View Details
                             </Link>
+                            <button
+                              onClick={() => handleViewAsCustomer(client.id, client.name)}
+                              className="w-full px-4 py-2 text-left text-sm text-[#0F172A] hover:bg-[#FAFAFA] transition-colors"
+                            >
+                              View as Customer
+                            </button>
                             <button
                               onClick={() => {
                                 setOpenPopover(null);

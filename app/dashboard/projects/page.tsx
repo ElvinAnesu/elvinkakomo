@@ -7,6 +7,7 @@ import Card from "../../components/Card";
 import ProjectCard from "../../components/ProjectCard";
 import { Project, ProjectStatus } from "../../lib/mockData";
 import { supabase } from "@/lib/supabase";
+import { resolveDashboardClientContext } from "@/lib/dashboard-impersonation";
 
 // Map database status to UI status
 const mapStatusToUI = (dbStatus: string | null): ProjectStatus => {
@@ -46,31 +47,17 @@ export default function ProjectsPage() {
       setLoading(true);
       setError(null);
 
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
+      const dashboardContext = await resolveDashboardClientContext();
+      if (!dashboardContext.authenticated) {
         router.push("/auth/login");
         return;
       }
 
-      // Get user profile to get client ID
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError || !profile) {
+      if (!dashboardContext.effectiveClientId) {
         setError("Failed to load profile");
         setLoading(false);
         return;
       }
-
-      const clientId = profile.id;
 
       // Fetch projects for this client
       const { data: projectsData, error: projectsError } = await supabase
@@ -87,7 +74,7 @@ export default function ProjectsPage() {
           )
         `
         )
-        .eq("client", clientId)
+        .eq("client", dashboardContext.effectiveClientId)
         .order("created_at", { ascending: false });
 
       if (projectsError) {
