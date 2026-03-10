@@ -4,7 +4,7 @@ import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Card from "../../../components/Card";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import {
@@ -372,6 +372,15 @@ export default function ProjectDetailPage({ params }: PageProps) {
                             </div>
                           </button>
                         </CollapsibleTrigger>
+                        <div className="mb-4">
+                          <Link
+                            href={`/dashboard/projects/${id}/milestones/${milestone.id}`}
+                            className="inline-flex items-center gap-1 text-sm font-semibold text-[#6B21A8] hover:text-[#7C3AED] transition-colors"
+                          >
+                            Open Milestone Board
+                            <ArrowUpRight className="h-3 w-3" />
+                          </Link>
+                        </div>
 
                         {/* Tasks for this milestone */}
                         <CollapsibleContent>
