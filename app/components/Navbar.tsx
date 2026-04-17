@@ -23,6 +23,13 @@ export default function Navbar() {
               Solutions
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#6B21A8] group-hover:w-full transition-all duration-300"></span>
             </Link>
+            <Link
+              href="/pricing"
+              className="text-[#64748B] hover:text-[#6B21A8] transition-colors font-medium relative group text-sm"
+            >
+              Pricing
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#6B21A8] group-hover:w-full transition-all duration-300"></span>
+            </Link>
           </div>
           <Link
             href="/collaborate"

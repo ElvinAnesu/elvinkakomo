@@ -44,6 +44,14 @@ export default function Footer() {
                   Solutions
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/pricing"
+                  className="text-[#64748B] hover:text-[#6B21A8] transition-colors font-medium text-sm"
+                >
+                  Pricing
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
